@@ -57,11 +57,11 @@ export const CampusMap: React.FC<CampusMapProps> = ({ restaurants, onSelectResta
                 <Compass className="w-5 h-5" />
               </span>
               <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                Mapa Interativo do Campus
+                Mapa Interativo do Campus UFCG
               </h2>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Visualize espacialmente os restaurantes no Anel Universitário, Praça Central e arredores
+              Visualize espacialmente os restaurantes no Campus da UFCG e arredores
             </p>
           </div>
 
@@ -104,8 +104,8 @@ export const CampusMap: React.FC<CampusMapProps> = ({ restaurants, onSelectResta
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#campus-grid)" />
-              {/* Anel Universitário Loop Visual Ring */}
-              <ellipse cx="40%" cy="42%" rx="30%" ry="28%" fill="none" stroke="#f97316" strokeWidth="3" strokeDasharray="6 6" />
+              {/* Campus Outer Perimeter */}
+              <ellipse cx="50%" cy="50%" rx="42%" ry="38%" fill="none" stroke="#f97316" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.4" />
               {/* Campus Central Green Area */}
               <ellipse cx="52%" cy="50%" rx="18%" ry="16%" fill="#10b981" opacity="0.15" />
             </svg>
@@ -118,7 +118,7 @@ export const CampusMap: React.FC<CampusMapProps> = ({ restaurants, onSelectResta
               <span>Planta Esquemática do Campus</span>
             </div>
             <div className="bg-slate-800/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700/80 text-[11px] text-slate-400">
-              Anel Universitário & Setores
+              Campus UFCG Bodocongó & Arredores
             </div>
           </div>
 
@@ -128,14 +128,9 @@ export const CampusMap: React.FC<CampusMapProps> = ({ restaurants, onSelectResta
             <div className="absolute left-[50%] top-[48%] -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
               <div className="w-16 h-16 rounded-full border-2 border-emerald-500/40 bg-emerald-500/10 animate-pulse flex items-center justify-center">
                 <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-widest text-center px-1">
-                  Praça Central
+                  Campus UFCG
                 </span>
               </div>
-            </div>
-
-            {/* Anel Ring Label */}
-            <div className="absolute left-[20%] top-[18%] text-[10px] font-extrabold text-orange-400/80 uppercase tracking-widest pointer-events-none rotate-[-12deg]">
-              ↺ Anel Universitário
             </div>
 
             {/* Render Pins for Restaurants */}
@@ -148,6 +143,18 @@ export const CampusMap: React.FC<CampusMapProps> = ({ restaurants, onSelectResta
 
               const isActive = rest.id === activePinId;
               const lowestPrice = Math.min(...rest.dishes.map((d) => d.price));
+
+              const getPinLabel = (name: string) => {
+                const lower = name.toLowerCase();
+                if (lower.includes('anel')) return 'Anel Univ.';
+                if (lower.includes('bodocongó') || lower.includes('ru ')) return 'RU Bodocongó';
+                if (lower.includes('ceei') || lower.includes('engenharia')) return 'CEEI';
+                if (lower.includes('coruja')) return 'Coruja Burger';
+                if (lower.includes('bistrô')) return 'Bistrô Verde';
+                if (lower.includes('bosque')) return 'Bosque';
+                if (lower.includes('convivência')) return 'Convivência';
+                return name.split(' ')[0];
+              };
 
               return (
                 <div
@@ -166,7 +173,7 @@ export const CampusMap: React.FC<CampusMapProps> = ({ restaurants, onSelectResta
                   >
                     <MapPin className={`w-4 h-4 ${isActive ? 'fill-white' : 'text-orange-400 group-hover:text-white'}`} />
                     <span className="text-[11px] font-extrabold whitespace-nowrap max-w-[100px] truncate">
-                      {rest.name.split(' ')[0]}
+                      {getPinLabel(rest.name)}
                     </span>
 
                     {rest.hasStudentDiscount && (

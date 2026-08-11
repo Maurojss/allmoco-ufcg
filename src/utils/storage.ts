@@ -2,7 +2,7 @@ import { Restaurant, Review } from '../types';
 import { db } from '../lib/firebase';
 import { collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
-const STORAGE_KEY = 'allmoco_restaurants_ufcg_v3';
+const STORAGE_KEY = 'allmoco_restaurants_ufcg_v5';
 const FAVORITES_KEY = 'allmoco_favorites_ufcg_v1';
 
 export function getStoredFavorites(): string[] {
@@ -255,47 +255,58 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
   },
   {
     id: 'rest-5',
-    name: 'Espetinho & Jantinha Universitária (Anel da UFCG)',
+    name: 'Restaurante & Self-Service Anel Universitário',
     imageUrl: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80',
-    googleMapsUrl: 'https://maps.google.com/?q=Espetinho+Anel+UFCG+Bodocongo',
-    openingHours: '11:30 - 23:00',
+    googleMapsUrl: 'https://maps.google.com/?q=Restaurante+Anel+Universitario+UFCG+Bodocongo',
+    openingHours: '10:30 - 22:00',
     hasStudentDiscount: true,
-    studentDiscountDetails: 'Combo Jantinha Estudante UFCG por R$ 21,00!',
-    campusZone: 'Anel Universitário UFCG - Leste',
-    coordinates: { x: 82, y: 65 },
+    studentDiscountDetails: 'Almoço PF Universitário a R$ 16,00 com apresentação da carteirinha UFCG!',
+    campusZone: 'Anel Universitário (Próximo ao Portão OESTE UFCG)',
+    coordinates: { x: 38, y: 32 },
     createdAt: Date.now() - 30000,
     dishes: [
       {
         id: 'dish-601',
-        name: 'Jantinha Universitária Completa UFCG',
-        size: 'Prato Executivo (500g)',
-        availableDays: 'Segunda a Sábado',
-        price: 21.0,
-        description: '1 espetinho à escolha, acompanhado de feijão tropeiro temperado, arroz branco, mandioca na manteiga e vinagrete.',
+        name: 'Prato Feito (PF) Universitário - Almoço Completo',
+        size: 'Prato Executivo (550g)',
+        availableDays: 'Segunda a Sábado (Almoço)',
+        price: 16.0,
+        description: 'Opção de Carne de Sol ou Frango Grelhado, acompanhado de arroz, feijão caseiro ou macaxeira, salada e farofa.',
         isLactoseFree: true,
         isVegan: false,
         isGlutenFree: true,
       },
       {
         id: 'dish-602',
-        name: 'Espetinho de Alcatra na Brasa',
-        size: 'Unidade (120g)',
-        availableDays: 'Todos os dias',
-        price: 9.0,
-        description: 'Carne suculenta assada na brasa, servida com farofa temperada da casa e vinagrete fresco.',
+        name: 'Self-Service sem Balança (Livre para Estudante)',
+        size: 'Buffet Livre (Almoço)',
+        availableDays: 'Segunda a Sexta',
+        price: 20.0,
+        description: 'Acesso liberado ao buffet com diversas opções de carnes, peixe, saladas cruas e cozidas, feijão tropeiro e acompanhamentos.',
         isLactoseFree: true,
         isVegan: false,
-        isGlutenFree: true,
+        isGlutenFree: false,
       },
       {
         id: 'dish-603',
-        name: 'Espetinho Vegano de Shimeji e Legumes',
-        size: 'Unidade (130g)',
-        availableDays: 'Todos os dias',
-        price: 9.5,
-        description: 'Shimeji marinado, pimentão colorido, cebola e abobrinha grelhados no fogo a lenha.',
+        name: 'Moqueca Vegana de Banana da Terra & Grão de Bico',
+        size: 'Prato Executivo (450g)',
+        availableDays: 'Segunda a Sábado',
+        price: 18.0,
+        description: 'Deliciosa moqueca com leite de coco light, pimentões, banana da terra frita e salada de folhas verdes.',
         isLactoseFree: true,
         isVegan: true,
+        isGlutenFree: true,
+      },
+      {
+        id: 'dish-604',
+        name: 'Jantinha & Espetinho do Anel',
+        size: 'Prato Individual (400g)',
+        availableDays: 'Segunda a Sábado (Noite)',
+        price: 15.0,
+        description: 'Espetinho na brasa à escolha com feijão tropeiro, macaxeira cozida e vinagrete especial.',
+        isLactoseFree: true,
+        isVegan: false,
         isGlutenFree: true,
       },
     ],
@@ -383,7 +394,20 @@ export function getStoredRestaurants(): Restaurant[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+      // Sync initial restaurants so default data is always updated
+      const merged = parsed.map((item) => {
+        const initMatch = INITIAL_RESTAURANTS.find((r) => r.id === item.id);
+        if (initMatch) {
+          return { ...item, ...initMatch };
+        }
+        return item;
+      });
+      for (const init of INITIAL_RESTAURANTS) {
+        if (!merged.some((r) => r.id === init.id)) {
+          merged.push(init);
+        }
+      }
+      return merged;
     }
     saveStoredRestaurants(INITIAL_RESTAURANTS);
     return INITIAL_RESTAURANTS;
@@ -439,7 +463,7 @@ export function subscribeToRestaurants(callback: (restaurants: Restaurant[]) => 
           }
         });
 
-        // Ensure all default restaurants exist in Firestore
+        // Ensure all default restaurants exist in Firestore or update out-of-date defaults
         const existingIds = new Set(list.map((r) => r.id));
         const missingDefaults = INITIAL_RESTAURANTS.filter((r) => !existingIds.has(r.id));
 
@@ -451,6 +475,19 @@ export function subscribeToRestaurants(callback: (restaurants: Restaurant[]) => 
             }
           } catch (e) {
             console.error('Error auto-seeding missing initial restaurants:', e);
+          }
+        }
+
+        // Sync initial default restaurants if Firestore contains outdated default documents
+        for (let i = 0; i < list.length; i++) {
+          const initMatch = INITIAL_RESTAURANTS.find((init) => init.id === list[i].id);
+          if (initMatch && (list[i].name !== initMatch.name || list[i].campusZone !== initMatch.campusZone)) {
+            list[i] = { ...list[i], ...initMatch };
+            try {
+              await setDoc(doc(db, 'restaurants', initMatch.id), initMatch);
+            } catch (e) {
+              console.error('Error updating default restaurant in Firestore:', e);
+            }
           }
         }
 
