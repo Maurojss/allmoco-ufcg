@@ -1,0 +1,6 @@
+{
+  "name": "allmoço UFCG – Restaurantes do Campus",
+  "description": "Encontre restaurantes no campus, pratos, horários, descontos para estudantes e opções com restrições alimentares.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

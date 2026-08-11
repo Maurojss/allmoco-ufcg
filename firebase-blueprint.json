@@ -1,0 +1,35 @@
+{
+  "entities": {
+    "restaurants": {
+      "title": "Restaurants",
+      "description": "Restaurantes e bares do campus UFCG",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "googleMapsUrl": { "type": "string" },
+        "openingHours": { "type": "string" },
+        "hasStudentDiscount": { "type": "boolean" },
+        "studentDiscountDetails": { "type": "string" },
+        "campusZone": { "type": "string" },
+        "coordinates": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        },
+        "dishes": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "createdAt": { "type": "number" },
+        "ownerId": { "type": "string" },
+        "ownerEmail": { "type": "string" },
+        "ownerName": { "type": "string" }
+      },
+      "required": ["name", "openingHours"]
+    }
+  }
+}
