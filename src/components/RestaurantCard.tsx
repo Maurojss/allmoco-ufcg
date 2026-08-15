@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Restaurant } from '../types';
 import { isRestaurantOpenNow, formatCurrency } from '../utils/time';
-import { OpenStatusBadge, StudentDiscountBadge, DietaryBadges } from './Badges';
-import { Utensils, Clock, ChevronRight, Store, Share2, UserCheck, Heart, WifiOff } from 'lucide-react';
+import { OpenStatusBadge, StudentDiscountBadge, DietaryBadges, PratoDoDiaBadge } from './Badges';
+import { Utensils, Clock, ChevronRight, Store, Share2, UserCheck, Heart, WifiOff, Sparkles } from 'lucide-react';
 import { isValidUrl } from '../utils/security';
 import { User } from '../lib/firebase';
 import { RatingDisplay } from './RatingStars';
@@ -94,6 +94,9 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
           <div className="absolute top-3 left-3 right-3 flex flex-wrap items-center justify-between gap-1.5 pointer-events-none">
             <div className="flex items-center gap-1.5 flex-wrap">
               <OpenStatusBadge isOpen={isOpen} hours={restaurant.openingHours} />
+              {restaurant.pratoDoDia && (
+                <PratoDoDiaBadge dishName={restaurant.pratoDoDia} compact={true} />
+              )}
               {isOffline && (
                 <span
                   className="inline-flex items-center gap-1 text-[10px] bg-amber-500 text-slate-950 font-extrabold px-2 py-0.5 rounded-full shadow-xs uppercase tracking-wider"
@@ -178,6 +181,29 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
               )}
             </div>
           </div>
+
+          {/* Prato do Dia Special Highlight Box */}
+          {restaurant.pratoDoDia && (
+            <div className="flex items-center gap-2 p-2.5 bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50/40 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-amber-950/20 rounded-xl border border-amber-300/80 dark:border-amber-700/60 shadow-2xs">
+              <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 text-white shrink-0 shadow-xs">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 leading-none mb-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                    Prato do Dia
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-amber-400" />
+                  <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-500">
+                    Hoje
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                  {restaurant.pratoDoDia}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Opening Hours & Rating Info */}
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-slate-600 dark:text-slate-400">

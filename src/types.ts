@@ -30,6 +30,7 @@ export interface Restaurant {
   studentDiscountDetails?: string; // e.g., '10% de desconto com carteirinha'
   campusZone?: string; // e.g., 'Anel Universitário', 'Praça Central', etc.
   coordinates?: { x: number; y: number }; // Percentage coordinates (0-100) on campus map
+  pratoDoDia?: string; // e.g., 'Carne de Sol na Manteiga com Macaxeira'
   dishes: Dish[];
   createdAt: number;
   ratings?: Record<string, number>; // Map of userId -> score (1..5)
@@ -52,3 +53,22 @@ export interface FilterState {
 }
 
 export type TabType = 'list' | 'map' | 'form';
+
+export interface SpendingDishItem {
+  dishId: string;
+  restaurantId: string;
+  restaurantName: string;
+  dishName: string;
+  price: number;
+  daysPerWeek: number; // 1 to 7
+  mealType?: 'almoco' | 'jantar' | 'lanche';
+  hasStudentDiscount?: boolean;
+}
+
+export interface SpendingHistorySummary {
+  totalWeekly: number;
+  averageDaily: number;
+  totalMonthly: number;
+  ruComparisonSavings: number;
+  itemCount: number;
+}

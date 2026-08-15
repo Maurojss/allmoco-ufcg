@@ -34,7 +34,7 @@ export const shareRestaurant = async (
       }
     }
 
-    // Fallback: Copy URL to clipboard
+    // Fallback: Copy URL to clipboard with modern async API
     if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(shareUrl);
       if (onToast) {
@@ -42,15 +42,9 @@ export const shareRestaurant = async (
       }
       return true;
     } else {
-      // Secondary fallback if clipboard API is blocked
-      const input = document.createElement('input');
-      input.value = shareUrl;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand('copy');
-      document.body.removeChild(input);
+      // Graceful fallback when clipboard permission is unavailable
       if (onToast) {
-        onToast('Link do restaurante copiado!', 'success');
+        onToast(`Link do restaurante: ${shareUrl}`, 'info');
       }
       return true;
     }

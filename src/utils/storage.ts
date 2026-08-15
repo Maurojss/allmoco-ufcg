@@ -2,8 +2,10 @@ import { Restaurant, Review } from '../types';
 import { db } from '../lib/firebase';
 import { collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
-const STORAGE_KEY = 'allmoco_restaurants_ufcg_v5';
+const STORAGE_KEY = 'allmoco_restaurants_ufcg_v8';
 const FAVORITES_KEY = 'allmoco_favorites_ufcg_v1';
+const FAVORITE_DISHES_KEY = 'allmoco_favorite_dishes_ufcg_v1';
+const SPENDING_SETTINGS_KEY = 'allmoco_spending_settings_ufcg_v1';
 
 export function getStoredFavorites(): string[] {
   try {
@@ -25,6 +27,49 @@ export function saveStoredFavorites(favorites: string[]): void {
   }
 }
 
+export function getStoredFavoriteDishes(): string[] {
+  try {
+    const raw = localStorage.getItem(FAVORITE_DISHES_KEY);
+    if (!raw) return ['dish-101', 'dish-201', 'dish-401'];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : ['dish-101', 'dish-201', 'dish-401'];
+  } catch (e) {
+    console.error('Error reading favorite dishes:', e);
+    return ['dish-101', 'dish-201', 'dish-401'];
+  }
+}
+
+export function saveStoredFavoriteDishes(dishIds: string[]): void {
+  try {
+    localStorage.setItem(FAVORITE_DISHES_KEY, JSON.stringify(dishIds));
+  } catch (e) {
+    console.error('Error saving favorite dishes:', e);
+  }
+}
+
+export interface StoredSpendingFrequency {
+  [dishId: string]: number; // days per week: 1..7
+}
+
+export function getStoredSpendingFrequency(): StoredSpendingFrequency {
+  try {
+    const raw = localStorage.getItem(SPENDING_SETTINGS_KEY);
+    if (!raw) return { 'dish-101': 3, 'dish-201': 1, 'dish-401': 1 };
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null ? parsed : { 'dish-101': 3, 'dish-201': 1, 'dish-401': 1 };
+  } catch (e) {
+    return { 'dish-101': 3, 'dish-201': 1, 'dish-401': 1 };
+  }
+}
+
+export function saveStoredSpendingFrequency(config: StoredSpendingFrequency): void {
+  try {
+    localStorage.setItem(SPENDING_SETTINGS_KEY, JSON.stringify(config));
+  } catch (e) {
+    console.error('Error saving spending settings:', e);
+  }
+}
+
 export const INITIAL_RESTAURANTS: Restaurant[] = [
   {
     id: 'rest-1',
@@ -36,6 +81,7 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
     studentDiscountDetails: 'Refeição subsidiada a R$ 3,50 com carteirinha estudantil UFCG ativa',
     campusZone: 'Praça Central - UFCG Bodocongó',
     coordinates: { x: 50, y: 48 },
+    pratoDoDia: 'Strogonoff de Cogumelos com Batata Palha Crocante',
     createdAt: Date.now() - 300000,
     ratings: { 'user-1': 5, 'user-2': 5, 'user-3': 4, 'user-4': 5, 'user-5': 5 },
     reviews: [
@@ -112,6 +158,7 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
     studentDiscountDetails: '10% de desconto para estudantes da UFCG via PIX ou em dinheiro',
     campusZone: 'Bloco CEEI / Engenharias UFCG',
     coordinates: { x: 72, y: 30 },
+    pratoDoDia: 'Feijoada Vegana Especial com Couve e Farofa Caseira',
     createdAt: Date.now() - 200000,
     ratings: { 'user-1': 5, 'user-2': 4, 'user-3': 5, 'user-4': 4 },
     reviews: [
@@ -179,6 +226,7 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
     studentDiscountDetails: 'Combo Estudante UFCG: Burger + Batata por R$ 25,00 após as 21h',
     campusZone: 'Entrada Aprígio Veloso - UFCG',
     coordinates: { x: 25, y: 78 },
+    pratoDoDia: 'Burger Smash Especial com Queijo Cheddar Artesanal',
     createdAt: Date.now() - 100000,
     ratings: { 'user-1': 5, 'user-2': 5, 'user-3': 4, 'user-4': 5 },
     dishes: [
@@ -227,6 +275,7 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
     studentDiscountDetails: '',
     campusZone: 'Praça de Alimentação UFCG',
     coordinates: { x: 42, y: 35 },
+    pratoDoDia: 'Bowl de Açaí Zero Açúcar com Granola Sem Glúten & Frutas',
     createdAt: Date.now() - 50000,
     dishes: [
       {
@@ -255,15 +304,35 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
   },
   {
     id: 'rest-5',
-    name: 'Restaurante & Self-Service Anel Universitário',
+    name: 'Anel Universitário',
     imageUrl: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80',
     googleMapsUrl: 'https://maps.google.com/?q=Restaurante+Anel+Universitario+UFCG+Bodocongo',
-    openingHours: '10:30 - 22:00',
+    openingHours: '11:00 - 14:30',
     hasStudentDiscount: true,
     studentDiscountDetails: 'Almoço PF Universitário a R$ 16,00 com apresentação da carteirinha UFCG!',
-    campusZone: 'Anel Universitário (Próximo ao Portão OESTE UFCG)',
+    campusZone: 'Anel Universitário (Próximo ao Portão Oeste UFCG)',
     coordinates: { x: 38, y: 32 },
+    pratoDoDia: 'PF Universitário: Carne de Sol na Manteiga com Macaxeira',
     createdAt: Date.now() - 30000,
+    ratings: { 'user-1': 5, 'user-2': 5, 'user-3': 5, 'user-4': 4 },
+    reviews: [
+      {
+        id: 'rev-501',
+        userId: 'user-1',
+        userName: 'Thiago Medeiros (Eng. Civil)',
+        rating: 5,
+        comment: 'Melhor opção de almoço no Anel Universitário! A carne de sol com macaxeira é sensacional e o atendimento é muito rápido.',
+        createdAt: Date.now() - 86400000 * 1,
+      },
+      {
+        id: 'rev-502',
+        userId: 'user-2',
+        userName: 'Camila Vasconcelos (Nutrição)',
+        rating: 5,
+        comment: 'Excelente variedade no almoço executivo e opções veganas deliciosas como a moqueca de banana da terra. Muito perto do portão oeste.',
+        createdAt: Date.now() - 86400000 * 3,
+      },
+    ],
     dishes: [
       {
         id: 'dish-601',
@@ -271,18 +340,18 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
         size: 'Prato Executivo (550g)',
         availableDays: 'Segunda a Sábado (Almoço)',
         price: 16.0,
-        description: 'Opção de Carne de Sol ou Frango Grelhado, acompanhado de arroz, feijão caseiro ou macaxeira, salada e farofa.',
+        description: 'Carne de Sol na manteiga ou Frango Grelhado, arroz branco ou integral, feijão caseiro, macaxeira cozida, salada fresca e farofa crocante.',
         isLactoseFree: true,
         isVegan: false,
         isGlutenFree: true,
       },
       {
         id: 'dish-602',
-        name: 'Self-Service sem Balança (Livre para Estudante)',
-        size: 'Buffet Livre (Almoço)',
-        availableDays: 'Segunda a Sexta',
+        name: 'Self-Service sem Balança (Almoço Livre)',
+        size: 'Buffet Livre no Almoço',
+        availableDays: 'Segunda a Sexta (11h às 14h30)',
         price: 20.0,
-        description: 'Acesso liberado ao buffet com diversas opções de carnes, peixe, saladas cruas e cozidas, feijão tropeiro e acompanhamentos.',
+        description: 'Acesso liberado ao buffet de almoço com diversas opções de carnes grelhadas, peixes, feijão tropeiro, macarrão, saladas cruas e cozidas.',
         isLactoseFree: true,
         isVegan: false,
         isGlutenFree: false,
@@ -290,23 +359,45 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
       {
         id: 'dish-603',
         name: 'Moqueca Vegana de Banana da Terra & Grão de Bico',
-        size: 'Prato Executivo (450g)',
-        availableDays: 'Segunda a Sábado',
+        size: 'Prato Executivo (480g)',
+        availableDays: 'Segunda a Sábado (Almoço)',
         price: 18.0,
-        description: 'Deliciosa moqueca com leite de coco light, pimentões, banana da terra frita e salada de folhas verdes.',
+        description: 'Moqueca aromática no leite de coco natural, banana da terra, grão de bico selecionado, pimentões, azeite de dendê suave e arroz soltinho.',
         isLactoseFree: true,
         isVegan: true,
         isGlutenFree: true,
       },
       {
         id: 'dish-604',
-        name: 'Jantinha & Espetinho do Anel',
-        size: 'Prato Individual (400g)',
-        availableDays: 'Segunda a Sábado (Noite)',
-        price: 15.0,
-        description: 'Espetinho na brasa à escolha com feijão tropeiro, macaxeira cozida e vinagrete especial.',
+        name: 'Filé de Frango Grelhado com Macaxeira na Manteiga',
+        size: 'Prato Executivo (500g)',
+        availableDays: 'Segunda a Sábado (Almoço)',
+        price: 17.0,
+        description: 'Filé de peito de frango marinado com ervas finas, servido com macaxeira amanteigada, arroz, feijão carioca e vinagrete.',
         isLactoseFree: true,
         isVegan: false,
+        isGlutenFree: true,
+      },
+      {
+        id: 'dish-605',
+        name: 'Marmitex Executiva de Carne de Sol Acebolada',
+        size: 'Marmita Grande (550g)',
+        availableDays: 'Segunda a Sábado (Almoço)',
+        price: 17.5,
+        description: 'Carne de sol desfiada acebolada, arroz soltinho, feijão macáçar temperado, macaxeira cozida e vinagrete.',
+        isLactoseFree: true,
+        isVegan: false,
+        isGlutenFree: true,
+      },
+      {
+        id: 'dish-606',
+        name: 'Jarra de Suco Natural da Fruta (Laranja / Maracujá / Acerola)',
+        size: 'Jarra (500ml)',
+        availableDays: 'Todos os dias no Almoço',
+        price: 7.0,
+        description: 'Suco 100% natural da fruta batido na hora, gelado e refrescante para acompanhar a refeição.',
+        isLactoseFree: true,
+        isVegan: true,
         isGlutenFree: true,
       },
     ],
@@ -321,6 +412,7 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
     studentDiscountDetails: 'Café expresso de cortesia na compra de pastel gigante com carteirinha UFCG',
     campusZone: 'Bosque Central UFCG',
     coordinates: { x: 65, y: 75 },
+    pratoDoDia: 'Pastel Gigante Especial de Frango com Catupiry',
     createdAt: Date.now() - 20000,
     dishes: [
       {
@@ -357,6 +449,7 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
     studentDiscountDetails: '15% de desconto no almoço para alunos de graduação e pós da UFCG',
     campusZone: 'Centro de Convivência UFCG Bodocongó',
     coordinates: { x: 55, y: 58 },
+    pratoDoDia: 'Frango Grelhado Suculento com Mix de Legumes no Vapor',
     createdAt: Date.now() - 2000,
     dishes: [
       {
@@ -467,32 +560,8 @@ export function subscribeToRestaurants(callback: (restaurants: Restaurant[]) => 
         const existingIds = new Set(list.map((r) => r.id));
         const missingDefaults = INITIAL_RESTAURANTS.filter((r) => !existingIds.has(r.id));
 
-        if (missingDefaults.length > 0) {
-          try {
-            for (const rest of missingDefaults) {
-              await setDoc(doc(db, 'restaurants', rest.id), rest);
-              list.push(rest);
-            }
-          } catch (e) {
-            console.error('Error auto-seeding missing initial restaurants:', e);
-          }
-        }
-
-        // Sync initial default restaurants if Firestore contains outdated default documents
-        for (let i = 0; i < list.length; i++) {
-          const initMatch = INITIAL_RESTAURANTS.find((init) => init.id === list[i].id);
-          if (initMatch && (list[i].name !== initMatch.name || list[i].campusZone !== initMatch.campusZone)) {
-            list[i] = { ...list[i], ...initMatch };
-            try {
-              await setDoc(doc(db, 'restaurants', initMatch.id), initMatch);
-            } catch (e) {
-              console.error('Error updating default restaurant in Firestore:', e);
-            }
-          }
-        }
-
+        // If Firestore is completely empty on initial setup, provide defaults locally
         if (list.length === 0) {
-          // If Firestore returns documents with missing data or empty list, use defaults
           saveStoredRestaurants(INITIAL_RESTAURANTS);
           callback(INITIAL_RESTAURANTS);
           return;
@@ -504,7 +573,7 @@ export function subscribeToRestaurants(callback: (restaurants: Restaurant[]) => 
       }
     },
     (err) => {
-      console.error('Firestore listener error:', err);
+      console.warn('Firestore listener error or offline mode:', err?.message || err);
       callback(getStoredRestaurants());
     }
   );

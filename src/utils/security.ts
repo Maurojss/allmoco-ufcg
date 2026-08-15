@@ -1,19 +1,21 @@
 /**
- * Sanitizes raw text string to avoid XSS vulnerabilities when displaying user input.
+ * Sanitizes raw text string to avoid XSS vulnerabilities and control character injection.
  */
 export function sanitizeString(str: string | undefined | null): string {
-  if (!str) return '';
+  if (!str || typeof str !== 'string') return '';
   return str
+    .replace(/[\u200B-\u200D\uFEFF\u202E\u202D]/g, '') // Strip zero-width & RTL override control characters
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
+    .replace(/\//g, '&#x2F;')
+    .trim();
 }
 
 /**
- * Validates if a string is a safe HTTP or HTTPS URL.
+ * Validates if a string is a safe HTTP or HTTPS URL (rejects javascript:, data:, file:, etc.).
  */
 export function isValidUrl(url: string | undefined | null): boolean {
   if (!url || typeof url !== 'string') return false;
@@ -28,7 +30,7 @@ export function isValidUrl(url: string | undefined | null): boolean {
 }
 
 /**
- * Returns a safe URL string or fallback if invalid.
+ * Returns a safe URL string or fallback if invalid or dangerous scheme detected.
  */
 export function getSafeUrl(url: string | undefined | null, fallback = '#'): string {
   if (isValidUrl(url)) {
@@ -36,3 +38,4 @@ export function getSafeUrl(url: string | undefined | null, fallback = '#'): stri
   }
   return fallback;
 }
+

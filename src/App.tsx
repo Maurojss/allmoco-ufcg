@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Restaurant, FilterState, TabType, Dish } from './types';
 import {
@@ -6,6 +6,11 @@ import {
   saveStoredRestaurants,
   getStoredFavorites,
   saveStoredFavorites,
+  getStoredFavoriteDishes,
+  saveStoredFavoriteDishes,
+  getStoredSpendingFrequency,
+  saveStoredSpendingFrequency,
+  StoredSpendingFrequency,
   subscribeToRestaurants,
   addRestaurantAsync,
   updateRestaurantAsync,
@@ -15,6 +20,15 @@ import {
   rateRestaurantAsync,
   addReviewAsync,
 } from './utils/storage';
+import { syncOfflineCacheWithServiceWorker } from './utils/serviceWorker';
+import {
+  isNotificationSupported,
+  getNotificationPermission,
+  requestNotificationPermission,
+  sendLocalNotification,
+  checkFavoriteUpdates,
+  NotificationPermissionState,
+} from './utils/notifications';
 import { isRestaurantOpenNow } from './utils/time';
 import { shareRestaurant } from './utils/share';
 import { auth, loginWithGoogle, logoutUser, onAuthStateChanged, User } from './lib/firebase';
@@ -30,6 +44,7 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { EmptyState } from './components/EmptyState';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { NutritionCalculatorModal } from './components/NutritionCalculatorModal';
+import { UserProfileModal } from './components/UserProfileModal';
 
 const DEFAULT_FILTERS: FilterState = {
   searchRestaurant: '',
@@ -46,6 +61,10 @@ const DEFAULT_FILTERS: FilterState = {
 export default function App() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>(() => getStoredRestaurants());
   const [favorites, setFavorites] = useState<string[]>(() => getStoredFavorites());
+  const [favoriteDishes, setFavoriteDishes] = useState<string[]>(() => getStoredFavoriteDishes());
+  const [spendingFrequency, setSpendingFrequency] = useState<StoredSpendingFrequency>(() =>
+    getStoredSpendingFrequency()
+  );
   const [activeTab, setActiveTab] = useState<TabType>('list');
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
@@ -58,6 +77,9 @@ export default function App() {
 
   // Nutrition Calculator Modal State
   const [isNutritionModalOpen, setIsNutritionModalOpen] = useState(false);
+
+  // User Profile & Spending History Modal State
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Editing state for RestaurantForm
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
@@ -72,6 +94,12 @@ export default function App() {
   const [isOffline, setIsOffline] = useState<boolean>(
     typeof navigator !== 'undefined' ? !navigator.onLine : false
   );
+
+  // Web Notifications API state & ref for tracking favorite restaurant updates
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermissionState>(() =>
+    getNotificationPermission()
+  );
+  const prevRestaurantsRef = useRef<Restaurant[]>([]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -106,13 +134,44 @@ export default function App() {
       if (list.length === 0) {
         reseedDefaultRestaurantsAsync().then((seeded) => {
           setRestaurants(seeded);
+          syncOfflineCacheWithServiceWorker(seeded);
         });
       } else {
         setRestaurants(list);
+        syncOfflineCacheWithServiceWorker(list);
       }
     });
     return () => unsubscribeSnapshot();
   }, []);
+
+  // Sync cache with Service Worker when restaurants are updated
+  useEffect(() => {
+    if (restaurants.length > 0) {
+      syncOfflineCacheWithServiceWorker(restaurants);
+    }
+  }, [restaurants]);
+
+  // 3. Detect changes in Favorite Restaurants (Prato do Dia / New dishes) & Trigger Web Notifications
+  useEffect(() => {
+    if (restaurants.length > 0) {
+      if (prevRestaurantsRef.current.length > 0 && favorites.length > 0) {
+        const updates = checkFavoriteUpdates(prevRestaurantsRef.current, restaurants, favorites);
+        updates.forEach((update) => {
+          // Send Local Web Notification via Web Notifications API
+          sendLocalNotification(update.title, {
+            body: update.message,
+            icon: update.restaurant.imageUrl,
+            onClick: () => {
+              handleSelectRestaurant(update.restaurant);
+            },
+          });
+          // Also show in-app toast for immediate on-screen visibility
+          addToast(update.message, 'info');
+        });
+      }
+      prevRestaurantsRef.current = restaurants;
+    }
+  }, [restaurants, favorites]);
 
   // Check for shared restaurant in URL search query on load
   useEffect(() => {
@@ -183,11 +242,74 @@ export default function App() {
       const name = rest ? rest.name : 'Restaurante';
       if (!exists) {
         addToast(`"${name}" adicionado aos favoritos!`, 'success');
+        // Proactively ask for notifications permission if not yet decided
+        if (isNotificationSupported() && getNotificationPermission() === 'default') {
+          requestNotificationPermission().then((granted) => {
+            setNotificationPermission(getNotificationPermission());
+            if (granted) {
+              addToast('Você receberá alertas quando este restaurante atualizar o Prato do Dia!', 'success');
+            }
+          });
+        }
       } else {
         addToast(`"${name}" removido dos favoritos.`, 'info');
       }
       return updated;
     });
+  };
+
+  // Dish Favorite Toggle Handler
+  const handleToggleFavoriteDish = (dishId: string) => {
+    setFavoriteDishes((prev) => {
+      const exists = prev.includes(dishId);
+      const updated = exists ? prev.filter((id) => id !== dishId) : [...prev, dishId];
+      saveStoredFavoriteDishes(updated);
+
+      if (!exists) {
+        addToast('Prato adicionado aos favoritos e à estimativa de gastos semanais!', 'success');
+        setSpendingFrequency((prevFreq) => {
+          if (!prevFreq[dishId]) {
+            const next = { ...prevFreq, [dishId]: 1 };
+            saveStoredSpendingFrequency(next);
+            return next;
+          }
+          return prevFreq;
+        });
+      } else {
+        addToast('Prato removido dos favoritos.', 'info');
+      }
+      return updated;
+    });
+  };
+
+  // Spending Frequency Update Handler
+  const handleUpdateDishFrequency = (dishId: string, days: number) => {
+    setSpendingFrequency((prev) => {
+      const updated = { ...prev, [dishId]: days };
+      saveStoredSpendingFrequency(updated);
+      return updated;
+    });
+  };
+
+  // Request notifications permission handler
+  const handleRequestNotifications = async () => {
+    if (!isNotificationSupported()) {
+      addToast('Seu navegador não possui suporte para a Web Notifications API.', 'error');
+      return;
+    }
+
+    const granted = await requestNotificationPermission();
+    const currentPerm = getNotificationPermission();
+    setNotificationPermission(currentPerm);
+
+    if (granted) {
+      sendLocalNotification('🔔 Notificações Ativadas no allmoço UFCG!', {
+        body: 'Você receberá alertas sempre que seus restaurantes favoritos atualizarem o Prato do Dia ou adicionarem novos itens ao cardápio.',
+      });
+      addToast('Notificações de favoritos ativadas com sucesso!', 'success');
+    } else if (currentPerm === 'denied') {
+      addToast('As notificações estão desativadas nas configurações do seu navegador.', 'info');
+    }
   };
 
   // Rating handler
@@ -443,17 +565,20 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans flex flex-col antialiased selection:bg-orange-500 selection:text-white">
       
-      {/* Top Header with Google Login */}
+      {/* Top Header with Google Login & Notification Toggle */}
       <Header
         totalRestaurants={restaurants.length}
         openCount={openCount}
         currentUser={currentUser}
         isOffline={isOffline}
+        notificationPermission={notificationPermission}
+        onRequestNotifications={handleRequestNotifications}
         onLoginGoogle={handleGoogleLogin}
         onLogout={handleLogout}
         showMyRestaurantsOnly={showMyRestaurantsOnly}
         onToggleMyRestaurantsOnly={() => setShowMyRestaurantsOnly(!showMyRestaurantsOnly)}
         onOpenNutritionModal={() => setIsNutritionModalOpen(true)}
+        onOpenProfileModal={() => setIsProfileModalOpen(true)}
       />
 
       {/* Navigation Tabs */}
@@ -602,7 +727,9 @@ export default function App() {
         restaurant={selectedRestaurant}
         currentUser={currentUser}
         isFavorite={selectedRestaurant ? favorites.includes(selectedRestaurant.id) : false}
+        favoriteDishIds={favoriteDishes}
         onToggleFavorite={handleToggleFavorite}
+        onToggleFavoriteDish={handleToggleFavoriteDish}
         onRateRestaurant={handleRateRestaurant}
         onSubmitReview={handleSubmitReview}
         onLoginGoogle={handleGoogleLogin}
@@ -612,6 +739,24 @@ export default function App() {
         onDeleteDish={handleDeleteDish}
         onShare={handleShareRestaurant}
         onOpenNutritionModal={() => setIsNutritionModalOpen(true)}
+        onOpenSpendingModal={() => setIsProfileModalOpen(true)}
+      />
+
+      {/* User Profile & Weekly Spending Estimate Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        restaurants={restaurants}
+        favoriteRestaurantIds={favorites}
+        favoriteDishIds={favoriteDishes}
+        spendingFrequency={spendingFrequency}
+        onToggleFavoriteRestaurant={handleToggleFavorite}
+        onToggleFavoriteDish={handleToggleFavoriteDish}
+        onUpdateDishFrequency={handleUpdateDishFrequency}
+        onSelectRestaurant={(r) => handleSelectRestaurant(r)}
+        onLoginGoogle={handleGoogleLogin}
+        onLogout={handleLogout}
       />
 
       {/* Confirm Delete Restaurant Modal */}

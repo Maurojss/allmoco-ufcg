@@ -44,6 +44,7 @@ export const RestaurantForm: React.FC<RestaurantFormProps> = ({
   const [hasStudentDiscount, setHasStudentDiscount] = useState(true);
   const [studentDiscountDetails, setStudentDiscountDetails] = useState('');
   const [campusZone, setCampusZone] = useState('Praça Central do Campus');
+  const [pratoDoDia, setPratoDoDia] = useState('');
 
   // Dishes fields (starts with at least 2 dishes)
   const [dishes, setDishes] = useState<Omit<Dish, 'id'>[]>([
@@ -82,6 +83,7 @@ export const RestaurantForm: React.FC<RestaurantFormProps> = ({
       setHasStudentDiscount(Boolean(initialData.hasStudentDiscount));
       setStudentDiscountDetails(initialData.studentDiscountDetails || '');
       setCampusZone(initialData.campusZone || 'Praça Central do Campus');
+      setPratoDoDia(initialData.pratoDoDia || '');
       if (initialData.dishes && initialData.dishes.length >= 2) {
         setDishes(
           initialData.dishes.map((d) => ({
@@ -173,6 +175,14 @@ export const RestaurantForm: React.FC<RestaurantFormProps> = ({
       }
     });
 
+    if (!currentUser) {
+      newErrors.push('É necessário estar conectado com sua conta Google para cadastrar ou editar restaurantes.');
+    }
+
+    if (isEditing && initialData?.ownerId && currentUser && currentUser.uid !== initialData.ownerId && currentUser.email !== 'slenderbidum@gmail.com') {
+      newErrors.push('Você não possui autorização para alterar os dados deste estabelecimento.');
+    }
+
     if (newErrors.length > 0) {
       setErrors(newErrors);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -196,10 +206,11 @@ export const RestaurantForm: React.FC<RestaurantFormProps> = ({
         hasStudentDiscount,
         studentDiscountDetails: studentDiscountDetails.trim(),
         campusZone: campusZone.trim(),
+        pratoDoDia: pratoDoDia.trim() || undefined,
         dishes: preparedDishes,
-        ownerId: currentUser?.uid || initialData?.ownerId,
-        ownerEmail: currentUser?.email || initialData?.ownerEmail,
-        ownerName: currentUser?.displayName || initialData?.ownerName,
+        ownerId: currentUser?.uid || initialData?.ownerId || '',
+        ownerEmail: currentUser?.email || initialData?.ownerEmail || '',
+        ownerName: currentUser?.displayName || initialData?.ownerName || '',
       },
       initialData?.id
     );
@@ -398,6 +409,27 @@ export const RestaurantForm: React.FC<RestaurantFormProps> = ({
                   Noturno (18h-02h)
                 </button>
               </div>
+            </div>
+
+            {/* Prato do Dia (Destaque) */}
+            <div className="md:col-span-2 p-3.5 bg-gradient-to-r from-amber-50/70 via-orange-50/50 to-amber-50/70 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-amber-950/30 border border-amber-300/70 dark:border-amber-800/50 rounded-xl space-y-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Prato do Dia (Destaque Especial no Cartão)</span>
+                <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold bg-amber-200/60 dark:bg-amber-900/60 px-1.5 py-0.2 rounded">
+                  Opcional
+                </span>
+              </label>
+              <input
+                type="text"
+                value={pratoDoDia}
+                onChange={(e) => setPratoDoDia(e.target.value)}
+                placeholder="Ex: Strogonoff de Carne com Macaxeira na Manteiga ou Marmita Executiva"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-hidden text-slate-900 dark:text-slate-100 font-medium"
+              />
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Este prato receberá uma tag colorida "Prato do Dia" e uma área de destaque personalizada no cartão e no modal.
+              </p>
             </div>
 
             {/* Desconto Estudante Toggle & Details */}

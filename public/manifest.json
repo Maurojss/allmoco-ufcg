@@ -1,0 +1,17 @@
+{
+  "short_name": "allmoço UFCG",
+  "name": "allmoço UFCG – Restaurantes e Cardápios Universitários",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#ea580c",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "description": "Guia de restaurantes, cardápios, horários de funcionamento e pratos do dia do Campus Bodocongó UFCG com suporte 100% offline."
+}

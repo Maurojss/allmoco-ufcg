@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Restaurant } from '../types';
+import { isValidUrl, getSafeUrl } from '../utils/security';
 import {
   MapPin,
   Compass,
@@ -282,9 +283,9 @@ export const CampusMap: React.FC<CampusMapProps> = ({ restaurants, onSelectResta
                   <ChevronRight className="w-4 h-4" />
                 </button>
 
-                {activeRestaurant.googleMapsUrl && (
+                {isValidUrl(activeRestaurant.googleMapsUrl) && (
                   <a
-                    href={activeRestaurant.googleMapsUrl}
+                    href={getSafeUrl(activeRestaurant.googleMapsUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer"

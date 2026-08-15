@@ -1,17 +1,34 @@
 import React from 'react';
-import { UtensilsCrossed, GraduationCap, Store, Sparkles, LogIn, LogOut, User as UserIcon, Building2, WifiOff } from 'lucide-react';
+import {
+  UtensilsCrossed,
+  GraduationCap,
+  Store,
+  Sparkles,
+  LogIn,
+  LogOut,
+  User as UserIcon,
+  Building2,
+  WifiOff,
+  Bell,
+  BellRing,
+  Wallet,
+} from 'lucide-react';
 import { User } from '../lib/firebase';
+import { NotificationPermissionState } from '../utils/notifications';
 
 interface HeaderProps {
   totalRestaurants: number;
   openCount: number;
   currentUser: User | null;
   isOffline?: boolean;
+  notificationPermission?: NotificationPermissionState;
+  onRequestNotifications?: () => void;
   onLoginGoogle: () => void;
   onLogout: () => void;
   showMyRestaurantsOnly: boolean;
   onToggleMyRestaurantsOnly: () => void;
   onOpenNutritionModal?: () => void;
+  onOpenProfileModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,11 +36,14 @@ export const Header: React.FC<HeaderProps> = ({
   openCount,
   currentUser,
   isOffline,
+  notificationPermission = 'default',
+  onRequestNotifications,
   onLoginGoogle,
   onLogout,
   showMyRestaurantsOnly,
   onToggleMyRestaurantsOnly,
   onOpenNutritionModal,
+  onOpenProfileModal,
 }) => {
   return (
     <header className="bg-gradient-to-r from-orange-600 via-amber-600 to-amber-700 text-white shadow-md border-b border-orange-500/30 relative">
@@ -68,14 +88,62 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Header Action & User Profile / Stats */}
           <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+            {/* Web Notifications Toggle Button */}
+            {onRequestNotifications && (
+              <button
+                type="button"
+                id="header-notification-btn"
+                onClick={onRequestNotifications}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs border ${
+                  notificationPermission === 'granted'
+                    ? 'bg-emerald-500/20 text-emerald-100 border-emerald-400/40 hover:bg-emerald-500/30'
+                    : notificationPermission === 'denied'
+                    ? 'bg-red-500/20 text-red-200 border-red-400/40 hover:bg-red-500/30 opacity-75'
+                    : 'bg-white/15 hover:bg-white/25 text-white border-white/20 animate-pulse'
+                }`}
+                title={
+                  notificationPermission === 'granted'
+                    ? 'Notificações ativas: Você será avisado quando seus favoritos atualizarem o Prato do Dia ou cardápio'
+                    : notificationPermission === 'denied'
+                    ? 'Notificações bloqueadas nas permissões do seu navegador'
+                    : 'Clique para ativar notificações de Pratos do Dia e novos itens dos seus restaurantes favoritos'
+                }
+              >
+                {notificationPermission === 'granted' ? (
+                  <>
+                    <BellRing className="w-3.5 h-3.5 text-emerald-300" />
+                    <span className="hidden sm:inline">Notificações Ativas</span>
+                  </>
+                ) : (
+                  <>
+                    <Bell className="w-3.5 h-3.5 text-amber-200" />
+                    <span>Ativar Notificações</span>
+                  </>
+                )}
+              </button>
+            )}
+
             {onOpenNutritionModal && (
               <button
                 type="button"
                 onClick={onOpenNutritionModal}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs border border-white/20 transition-all cursor-pointer shadow-xs"
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs border border-white/20 transition-all cursor-pointer shadow-xs"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-200" />
                 <span>Calculadora Nutricional</span>
+              </button>
+            )}
+
+            {onOpenProfileModal && (
+              <button
+                type="button"
+                id="header-profile-spending-btn"
+                onClick={onOpenProfileModal}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs border border-white/25 transition-all cursor-pointer shadow-xs"
+                title="Abrir Perfil e Simulador de Gastos Semanais"
+              >
+                <Wallet className="w-3.5 h-3.5 text-amber-200" />
+                <span>Gastos Semanais</span>
               </button>
             )}
 
@@ -101,26 +169,33 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Google Login / User Menu */}
             {currentUser ? (
               <div className="flex items-center gap-2 bg-black/20 backdrop-blur-md p-1.5 pr-2.5 rounded-2xl border border-white/20">
-                {currentUser.photoURL ? (
-                  <img
-                    src={currentUser.photoURL}
-                    alt={currentUser.displayName || 'Usuário'}
-                    className="w-7 h-7 rounded-full border border-white/40 object-cover"
-                  />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center font-bold text-xs">
-                    {currentUser.displayName ? currentUser.displayName[0] : <UserIcon className="w-4 h-4" />}
+                <button
+                  type="button"
+                  onClick={onOpenProfileModal}
+                  className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity cursor-pointer"
+                  title="Abrir Meu Perfil & Gastos"
+                >
+                  {currentUser.photoURL ? (
+                    <img
+                      src={currentUser.photoURL}
+                      alt={currentUser.displayName || 'Usuário'}
+                      className="w-7 h-7 rounded-full border border-white/40 object-cover"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center font-bold text-xs">
+                      {currentUser.displayName ? currentUser.displayName[0] : <UserIcon className="w-4 h-4" />}
+                    </div>
+                  )}
+                  
+                  <div className="hidden lg:block">
+                    <span className="block text-xs font-bold text-white truncate max-w-[120px]">
+                      {currentUser.displayName || 'Estudante/Dono'}
+                    </span>
+                    <span className="block text-[10px] text-amber-200/80 truncate max-w-[120px]">
+                      {currentUser.email}
+                    </span>
                   </div>
-                )}
-                
-                <div className="text-left hidden lg:block">
-                  <span className="block text-xs font-bold text-white truncate max-w-[120px]">
-                    {currentUser.displayName || 'Estudante/Dono'}
-                  </span>
-                  <span className="block text-[10px] text-amber-200/80 truncate max-w-[120px]">
-                    {currentUser.email}
-                  </span>
-                </div>
+                </button>
 
                 {/* My Restaurants filter button */}
                 <button

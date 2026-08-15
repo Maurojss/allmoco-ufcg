@@ -2,6 +2,8 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { GoogleGenAI, Type } from "@google/genai";
 
 dotenv.config();
@@ -9,10 +11,33 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+// Security: Disable Express fingerprinting
+app.disable("x-powered-by");
 
-// API route: AI-based nutrition estimation
-app.post("/api/estimate-nutrition", async (req, res) => {
+// Security: Add Helmet middleware for security headers
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Managed by HTML / Vite assets
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+// Security: Strict JSON body limit to prevent memory exhaustion / DoS
+app.use(express.json({ limit: "100kb" }));
+
+// Security: Rate limiter for AI computation endpoint
+const nutritionRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes window
+  max: 40, // Limit each IP to 40 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Limite de consultas nutricionais atingido para este período. Tente novamente em alguns minutos.",
+  },
+});
+
+// API route: AI-based nutrition estimation with rate limiting and input validation
+app.post("/api/estimate-nutrition", nutritionRateLimiter, async (req, res) => {
   try {
     const { productName, weightGrams } = req.body;
 
@@ -20,12 +45,17 @@ app.post("/api/estimate-nutrition", async (req, res) => {
       return res.status(400).json({ error: "Nome do produto ou prato é obrigatório." });
     }
 
-    const weight = Number(weightGrams) > 0 ? Number(weightGrams) : 100;
+    // Input sanitization: limit string length to prevent Prompt Injection / Token Bloat
+    const cleanProductName = productName.trim().slice(0, 150);
+
+    // Limit weight bounds to prevent calculation overflow
+    const parsedWeight = Number(weightGrams);
+    const weight = parsedWeight > 0 && parsedWeight <= 5000 ? parsedWeight : 100;
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({
-        error: "Chave GEMINI_API_KEY não configurada no servidor.",
+        error: "Serviço de IA temporariamente indisponível.",
       });
     }
 
@@ -40,13 +70,12 @@ app.post("/api/estimate-nutrition", async (req, res) => {
 
     const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"];
     let responseText = null;
-    let lastError: any = null;
 
     for (const modelName of modelsToTry) {
       try {
         const response = await ai.models.generateContent({
           model: modelName,
-          contents: `Estime a informação nutricional do seguinte prato/alimento: "${productName.trim()}" considerando uma porção de ${weight} gramas. Determine a quantidade estimada de calorias (kcal), proteínas (g), carboidratos (g), gorduras (g) e fibras (g), além de uma breve explicação técnica de 1 frase em português sobre a composição nutricional.`,
+          contents: `Estime a informação nutricional do seguinte prato/alimento: "${cleanProductName}" considerando uma porção de ${weight} gramas. Determine a quantidade estimada de calorias (kcal), proteínas (g), carboidratos (g), gorduras (g) e fibras (g), além de uma breve explicação técnica de 1 frase em português sobre a composição nutricional.`,
           config: {
             systemInstruction:
               "Você é um nutricionista especialista em estimativa nutricional de alimentos e pratos universitários brasileiros. Forneça estimativas realistas e precisas de macronutrientes e calorias com base no nome do alimento e seu peso em gramas.",
@@ -73,9 +102,8 @@ app.post("/api/estimate-nutrition", async (req, res) => {
           responseText = response.text;
           break;
         }
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`Tentativa com modelo ${modelName} falhou:`, err?.message || err);
+      } catch (err) {
+        console.warn(`Tentativa com modelo ${modelName} falhou.`);
       }
     }
 
@@ -84,7 +112,7 @@ app.post("/api/estimate-nutrition", async (req, res) => {
       try {
         parsed = JSON.parse(responseText);
       } catch (e) {
-        console.error("Erro ao fazer parse do JSON retornado pelo Gemini:", e);
+        console.error("Erro ao parsear JSON retornado pelo Gemini.");
       }
     }
 
@@ -96,14 +124,13 @@ app.post("/api/estimate-nutrition", async (req, res) => {
         fats: Math.round((parsed.fats || 0) * 10) / 10,
         fiber: Math.round((parsed.fiber || 0) * 10) / 10,
         explanation: parsed.explanation || `Estimativa nutricional calculada via IA para porção de ${weight}g.`,
-        productName: productName.trim(),
+        productName: cleanProductName,
         weightGrams: weight,
       });
     }
 
-    // Heuristic fallback if Gemini API is temporarily unavailable (503 / High Demand)
-    console.warn("Utilizando estimativa heurística (Tabela TACO Campus) devido a indisponibilidade temporária dos servidores do Gemini.");
-    const lowerName = productName.toLowerCase();
+    // Heuristic fallback if Gemini API is temporarily unavailable
+    const lowerName = cleanProductName.toLowerCase();
     let kcalPer100 = 150;
     let protPer100 = 8;
     let carbPer100 = 20;
@@ -130,13 +157,14 @@ app.post("/api/estimate-nutrition", async (req, res) => {
       fats: Math.round(fatPer100 * factor * 10) / 10,
       fiber: Math.round(fiberPer100 * factor * 10) / 10,
       explanation: `Estimativa calculada via Tabela Nutricional Universitária (TACO) para porção de ${weight}g.`,
-      productName: productName.trim(),
+      productName: cleanProductName,
       weightGrams: weight,
     });
-  } catch (err: any) {
-    console.error("Erro na API de estimativa de nutrição com IA:", err);
+  } catch (err) {
+    console.error("Erro interno ao processar estimativa nutricional:", err);
+    // Information Disclosure Defense: Never leak internal error message or stack trace
     return res.status(500).json({
-      error: err.message || "Ocorreu um erro ao consultar a inteligência nutricional.",
+      error: "Ocorreu uma falha ao estimar a informação nutricional. Tente novamente mais tarde.",
     });
   }
 });
@@ -157,7 +185,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor iniciado em http://localhost:${PORT}`);
+    console.log(`Servidor seguro iniciado em http://localhost:${PORT}`);
   });
 }
 

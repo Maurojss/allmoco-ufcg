@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Restaurant, Dish } from '../types';
 import { isRestaurantOpenNow, formatCurrency } from '../utils/time';
-import { OpenStatusBadge, StudentDiscountBadge, DietaryBadges } from './Badges';
+import { OpenStatusBadge, StudentDiscountBadge, DietaryBadges, PratoDoDiaBadge } from './Badges';
 import { getSafeUrl, isValidUrl } from '../utils/security';
 import { User } from '../lib/firebase';
 import { RatingDisplay } from './RatingStars';
 import { ReviewSection } from './ReviewSection';
-import { calculateRatingStats } from '../utils/rating';
+import { calculateRatingStats, calculateRatingDistribution } from '../utils/rating';
+import { RatingDistributionChart } from './RatingDistributionChart';
 import {
   X,
   MapPin,
@@ -31,7 +32,9 @@ interface RestaurantModalProps {
   restaurant: Restaurant | null;
   currentUser?: User | null;
   isFavorite?: boolean;
+  favoriteDishIds?: string[];
   onToggleFavorite?: (restaurantId: string) => void;
+  onToggleFavoriteDish?: (dishId: string) => void;
   onRateRestaurant?: (restaurantId: string, rating: number) => void;
   onSubmitReview?: (restaurantId: string, rating: number, comment: string) => void;
   onLoginGoogle?: () => void;
@@ -41,13 +44,16 @@ interface RestaurantModalProps {
   onDeleteDish: (restaurantId: string, dishId: string) => void;
   onShare?: (restaurant: Restaurant) => void;
   onOpenNutritionModal?: () => void;
+  onOpenSpendingModal?: () => void;
 }
 
 export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   restaurant,
   currentUser,
   isFavorite = false,
+  favoriteDishIds = [],
   onToggleFavorite,
+  onToggleFavoriteDish,
   onRateRestaurant,
   onSubmitReview,
   onLoginGoogle,
@@ -57,6 +63,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   onDeleteDish,
   onShare,
   onOpenNutritionModal,
+  onOpenSpendingModal,
 }) => {
   const [imgError, setImgError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -64,6 +71,10 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   if (!restaurant) return null;
 
   const { average: avgRating, count: ratingCount } = calculateRatingStats(
+    restaurant.ratings,
+    restaurant.reviews
+  );
+  const ratingDistribution = calculateRatingDistribution(
     restaurant.ratings,
     restaurant.reviews
   );
@@ -79,6 +90,14 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
   const isOwner = Boolean(
     currentUser && restaurant.ownerId && currentUser.uid === restaurant.ownerId
+  );
+
+  const canManage = Boolean(
+    currentUser && (
+      currentUser.uid === restaurant.ownerId ||
+      currentUser.email === 'slenderbidum@gmail.com' ||
+      !restaurant.ownerId
+    )
   );
 
   const handleDeleteDishClick = (dishId: string, dishName: string) => {
@@ -143,6 +162,9 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
             <div className="flex flex-wrap items-center gap-2 mt-2">
               <OpenStatusBadge isOpen={isOpen} hours={restaurant.openingHours} />
+              {restaurant.pratoDoDia && (
+                <PratoDoDiaBadge dishName={restaurant.pratoDoDia} />
+              )}
               <div className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-full flex items-center">
                 <RatingDisplay average={avgRating} count={ratingCount} size="sm" />
               </div>
@@ -163,6 +185,28 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               </p>
             )}
           </div>
+
+          {/* Prato do Dia Highlight Banner in Modal */}
+          {restaurant.pratoDoDia && (
+            <div className="p-3.5 bg-gradient-to-r from-amber-50 via-orange-50/80 to-amber-50 dark:from-amber-950/50 dark:via-orange-950/40 dark:to-amber-950/50 border border-amber-300/90 dark:border-amber-700/70 rounded-2xl flex items-start gap-3 shadow-xs">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-xs shrink-0 mt-0.5">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                    Prato do Dia em Destaque
+                  </span>
+                  <span className="text-[10px] bg-amber-200/80 dark:bg-amber-800/80 text-amber-950 dark:text-amber-100 font-bold px-1.5 py-0.5 rounded">
+                    Sugestão de Hoje
+                  </span>
+                </div>
+                <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+                  {restaurant.pratoDoDia}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Detail Image or Fallback */}
           <div className="detail-img w-full max-h-[200px] h-[200px] object-cover rounded-xl my-3 bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-800">
@@ -212,6 +256,13 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Rating Distribution Chart (Recharts) */}
+          <RatingDistributionChart
+            distribution={ratingDistribution}
+            average={avgRating}
+            totalCount={ratingCount}
+          />
 
           {/* Review & Comments Section */}
           <ReviewSection
@@ -298,10 +349,34 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <span className="font-extrabold text-orange-600 dark:text-orange-400 text-sm sm:text-base">
                         {formatCurrency(dish.price)}
                       </span>
+
+                      {/* Favorite Individual Dish Toggle */}
+                      {onToggleFavoriteDish && (
+                        <button
+                          type="button"
+                          onClick={() => onToggleFavoriteDish(dish.id)}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            favoriteDishIds.includes(dish.id)
+                              ? 'text-rose-600 bg-rose-50 dark:bg-rose-950/60'
+                              : 'text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
+                          title={
+                            favoriteDishIds.includes(dish.id)
+                              ? 'Remover dos pratos favoritos (estimativa)'
+                              : 'Salvar como prato favorito e simular gastos'
+                          }
+                        >
+                          <Heart
+                            className={`w-4 h-4 ${
+                              favoriteDishIds.includes(dish.id) ? 'fill-rose-600' : ''
+                            }`}
+                          />
+                        </button>
+                      )}
 
                       {/* Delete Individual Dish */}
                       <button
@@ -349,28 +424,45 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onEdit(restaurant);
-              }}
-              className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition-all cursor-pointer"
-            >
-              <Edit className="w-4 h-4" />
-              <span>Editar Restaurante</span>
-            </button>
+            {canManage ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onEdit(restaurant);
+                  }}
+                  className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition-all cursor-pointer"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span>Editar Restaurante</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                onDeleteRestaurant(restaurant.id);
-              }}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-950/50 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Excluir Restaurante</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDeleteRestaurant(restaurant.id);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-950/50 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Excluir</span>
+                </button>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500">
+                <span>Gerenciamento restrito ao proprietário do estabelecimento.</span>
+                {!currentUser && onLoginGoogle && (
+                  <button
+                    type="button"
+                    onClick={onLoginGoogle}
+                    className="font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer ml-2"
+                  >
+                    Fazer Login
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
         </div>

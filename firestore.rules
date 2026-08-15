@@ -2,9 +2,72 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'slenderbidum@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidRestaurant(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 120
+        && data.openingHours is string && data.openingHours.size() > 0 && data.openingHours.size() <= 120
+        && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 2048))
+        && (!('googleMapsUrl' in data) || (data.googleMapsUrl is string && data.googleMapsUrl.size() <= 2048))
+        && (!('studentDiscountDetails' in data) || (data.studentDiscountDetails is string && data.studentDiscountDetails.size() <= 250))
+        && (!('campusZone' in data) || (data.campusZone is string && data.campusZone.size() <= 100))
+        && (!('pratoDoDia' in data) || (data.pratoDoDia is string && data.pratoDoDia.size() <= 150))
+        && (!('dishes' in data) || (data.dishes is list && data.dishes.size() <= 50));
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Restaurants Collection
     match /restaurants/{restaurantId} {
-      allow read, create: if true;
-      allow update, delete: if true;
+      // Public read so campus students can view menus without requiring login
+      allow read: if true;
+
+      // Creation allowed for authenticated users setting themselves as owner or admins
+      allow create: if isSignedIn()
+        && isValidId(restaurantId)
+        && isValidRestaurant(incoming())
+        && (incoming().ownerId == request.auth.uid || isAdmin());
+
+      // Update allowed if owner/admin modifying restaurant or any authenticated user rating/reviewing
+      allow update: if isSignedIn()
+        && isValidId(restaurantId)
+        && isValidRestaurant(incoming())
+        && (
+          isAdmin()
+          || (existing().ownerId == request.auth.uid && incoming().ownerId == existing().ownerId)
+          || (incoming().diff(existing()).affectedKeys().hasOnly(['ratings', 'reviews']))
+        );
+
+      // Deletion only allowed by the owner or administrator
+      allow delete: if isSignedIn()
+        && isValidId(restaurantId)
+        && (existing().ownerId == request.auth.uid || isAdmin());
     }
   }
 }
