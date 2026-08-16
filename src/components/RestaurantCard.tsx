@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Restaurant } from '../types';
 import { isRestaurantOpenNow, formatCurrency } from '../utils/time';
 import { OpenStatusBadge, StudentDiscountBadge, DietaryBadges, PratoDoDiaBadge } from './Badges';
-import { Utensils, Clock, ChevronRight, Store, Share2, UserCheck, Heart, WifiOff, Sparkles } from 'lucide-react';
+import { Utensils, Clock, ChevronRight, Store, Share2, UserCheck, Heart, WifiOff, Sparkles, QrCode } from 'lucide-react';
 import { isValidUrl } from '../utils/security';
 import { User } from '../lib/firebase';
 import { RatingDisplay } from './RatingStars';
@@ -16,6 +16,7 @@ interface RestaurantCardProps {
   onToggleFavorite?: (restaurantId: string) => void;
   onSelect: (restaurant: Restaurant) => void;
   onShare?: (restaurant: Restaurant) => void;
+  onOpenQRCode?: (restaurant: Restaurant) => void;
 }
 
 export const RestaurantCard: React.FC<RestaurantCardProps> = ({
@@ -25,6 +26,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   onToggleFavorite,
   onSelect,
   onShare,
+  onOpenQRCode,
 }) => {
   const [imgError, setImgError] = useState(false);
   const [isOffline, setIsOffline] = useState(
@@ -163,6 +165,21 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
                     <Heart className={`w-4 h-4 ${isFavorite ? 'fill-rose-600 text-rose-600' : ''}`} />
                   </motion.div>
                 </motion.button>
+              )}
+
+              {onOpenQRCode && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenQRCode(restaurant);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg transition-colors cursor-pointer"
+                  title="Gerar QR Code do restaurante"
+                  aria-label="Gerar QR Code"
+                >
+                  <QrCode className="w-4 h-4" />
+                </button>
               )}
 
               {onShare && (

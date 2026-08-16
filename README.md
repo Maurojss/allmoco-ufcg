@@ -55,11 +55,17 @@ O **allmoço UFCG** é uma plataforma *Progressive Web App* (PWA) desenvolvida p
 - Avaliação por estrelas (1 a 5) e resenhas descritivas de estudantes autenticados via **Google Sign-In**.
 - Gráfico de distribuição de avaliações em tempo real construído com **Recharts**.
 
-### 🏪 6. Gestão e Cadastro para Estabelecimentos
+### 📲 6. Gerador de QR Code e Deep Linking
+- **QR Code Instantâneo por Restaurante:** Geração de códigos QR dinâmicos em alta resolução com o logo e identidade visual do allmoço.
+- **Deep Linking Nativo:** Ao apontar a câmera do celular para o QR Code, qualquer estudante ou visitante abre instantaneamente a página e cardápio daquele restaurante específico (`?restaurant=ID`).
+- **Exportação & Mesa Universitária:** Download do QR Code em imagem de alta definição (PNG) com moldura personalizada e suporte a impressão para displays de mesa nas lanchonetes e refeitórios do campus.
+- **Compartilhamento Web Share:** Atalhos para WhatsApp, Telegram e redes sociais com um clique.
+
+### 🏪 7. Gestão e Cadastro para Estabelecimentos
 - Área dedicada para proprietários cadastrarem novos restaurantes ou atualizarem preços, horários de funcionamento e pratos do dia.
 - Controle de permissão: apenas o criador do restaurante ou administradores podem editar/excluir dados.
 
-### 📶 7. Offline First & PWA (Service Worker)
+### 📶 8. Offline First & PWA (Service Worker)
 - Aplicativo instalável no celular ou desktop (PWA).
 - Service Worker customizado com cache inteligente de dados e fotos, permitindo consulta aos cardápios mesmo em momentos de queda de sinal no campus.
 

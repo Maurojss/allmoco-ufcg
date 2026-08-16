@@ -26,6 +26,7 @@ import {
   Heart,
   Star,
   LogIn,
+  QrCode,
 } from 'lucide-react';
 
 interface RestaurantModalProps {
@@ -45,6 +46,7 @@ interface RestaurantModalProps {
   onShare?: (restaurant: Restaurant) => void;
   onOpenNutritionModal?: () => void;
   onOpenSpendingModal?: () => void;
+  onOpenQRCode?: (restaurant: Restaurant) => void;
 }
 
 export const RestaurantModal: React.FC<RestaurantModalProps> = ({
@@ -64,6 +66,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   onShare,
   onOpenNutritionModal,
   onOpenSpendingModal,
+  onOpenQRCode,
 }) => {
   const [imgError, setImgError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -143,21 +146,35 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 {restaurant.name}
               </h2>
 
-              {onToggleFavorite && (
-                <button
-                  type="button"
-                  onClick={() => onToggleFavorite(restaurant.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-colors cursor-pointer shrink-0 border ${
-                    isFavorite
-                      ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 border-rose-200 dark:border-rose-900'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-rose-600'
-                  }`}
-                  title={isFavorite ? 'Remover dos favoritos' : 'Salvar como favorito'}
-                >
-                  <Heart className={`w-4 h-4 ${isFavorite ? 'fill-rose-600 text-rose-600' : ''}`} />
-                  <span>{isFavorite ? 'Favorito' : 'Favoritar'}</span>
-                </button>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {onOpenQRCode && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenQRCode(restaurant)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-900/60 hover:bg-orange-100 dark:hover:bg-orange-950 transition-colors cursor-pointer"
+                    title="Gerar QR Code deste restaurante"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    <span className="hidden sm:inline">QR Code</span>
+                  </button>
+                )}
+
+                {onToggleFavorite && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleFavorite(restaurant.id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-colors cursor-pointer border ${
+                      isFavorite
+                        ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 border-rose-200 dark:border-rose-900'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-rose-600'
+                    }`}
+                    title={isFavorite ? 'Remover dos favoritos' : 'Salvar como favorito'}
+                  >
+                    <Heart className={`w-4 h-4 ${isFavorite ? 'fill-rose-600 text-rose-600' : ''}`} />
+                    <span>{isFavorite ? 'Favorito' : 'Favoritar'}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -413,6 +430,18 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
           {/* Modal Actions */}
           <div className="modal-actions flex flex-wrap gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+            {onOpenQRCode && (
+              <button
+                type="button"
+                onClick={() => onOpenQRCode(restaurant)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/70 border border-amber-200 dark:border-amber-800/60 shadow-xs transition-all cursor-pointer"
+                title="Gerar e exibir QR Code para escanear"
+              >
+                <QrCode className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>Gerar QR Code</span>
+              </button>
+            )}
+
             {onShare && (
               <button
                 type="button"

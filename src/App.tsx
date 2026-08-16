@@ -45,6 +45,7 @@ import { EmptyState } from './components/EmptyState';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { NutritionCalculatorModal } from './components/NutritionCalculatorModal';
 import { UserProfileModal } from './components/UserProfileModal';
+import { RestaurantQRCodeModal } from './components/RestaurantQRCodeModal';
 
 const DEFAULT_FILTERS: FilterState = {
   searchRestaurant: '',
@@ -74,6 +75,9 @@ export default function App() {
 
   // Selected Restaurant for Detail Modal
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+
+  // Restaurant for QR Code Modal
+  const [qrCodeRestaurant, setQrCodeRestaurant] = useState<Restaurant | null>(null);
 
   // Nutrition Calculator Modal State
   const [isNutritionModalOpen, setIsNutritionModalOpen] = useState(false);
@@ -657,6 +661,7 @@ export default function App() {
                           onToggleFavorite={handleToggleFavorite}
                           onSelect={(r) => handleSelectRestaurant(r)}
                           onShare={handleShareRestaurant}
+                          onOpenQRCode={(r) => setQrCodeRestaurant(r)}
                         />
                       </motion.div>
                     ))}
@@ -774,6 +779,14 @@ export default function App() {
       <NutritionCalculatorModal
         isOpen={isNutritionModalOpen}
         onClose={() => setIsNutritionModalOpen(false)}
+      />
+
+      {/* Standalone / Card triggered QR Code Modal */}
+      <RestaurantQRCodeModal
+        restaurant={qrCodeRestaurant}
+        isOpen={Boolean(qrCodeRestaurant)}
+        onClose={() => setQrCodeRestaurant(null)}
+        onToast={addToast}
       />
 
       {/* Toast Notifications */}

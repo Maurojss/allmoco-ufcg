@@ -74,8 +74,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [selectedQuickSchedule, setSelectedQuickSchedule] = useState<'5d' | '3d' | '7d' | 'custom'>('custom');
   const [showAddDishSelector, setShowAddDishSelector] = useState(false);
 
-  if (!isOpen) return null;
-
   // Flatten all available dishes across all restaurants
   const allDishesWithRestaurant = useMemo(() => {
     const list: Array<{ dish: Dish; restaurant: Restaurant }> = [];
@@ -167,6 +165,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     if (!currentUser) return [];
     return restaurants.filter((r) => r.ownerId === currentUser.uid);
   }, [restaurants, currentUser]);
+
+  if (!isOpen) return null;
 
   // Apply Quick Preset (e.g. 5 days, 3 days, 7 days)
   const handleApplyPreset = (type: '5d' | '3d' | '7d') => {
